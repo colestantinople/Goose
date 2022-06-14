@@ -1,0 +1,12 @@
+.goose-button {
+  padding: 8px 6px;
+  display: block;
+  margin: 10px auto;
+  border-radius: 4px;
+  transition: box-shadow 0.25s;
+  cursor: pointer;
+}
+
+.goose-button:hover {
+  box-shadow: 1px 1px 4px 0#0004;
+}

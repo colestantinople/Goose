@@ -1,0 +1,19 @@
+.image-card {
+  margin: 12px;
+  box-shadow: 2px 2px 12px 4px #DDD;
+  border-radius: 10px;
+
+  display: inline-grid;
+  grid-auto-flow: row;
+  text-align: center;
+  padding: 1em;
+}
+
+.image-card img {
+  margin: auto;
+}
+
+.image-card span {
+  display: inline-block;
+  padding-top: 1em;
+}

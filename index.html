@@ -1,0 +1,193 @@
+<head>
+  <link href="demo-resources/index.css" rel="stylesheet">
+  </link>
+  <script src="Goose/_private/load.js" type="module"></script>
+</head>
+
+<body>
+  <div id="content">
+    <img id="goose-image" src="demo-resources/goose-header.png" alt="">
+    <h1>Welcome to Goose</h1>
+
+    <p>Goose is a super basic tool for creating web components on a website.</p>
+    <p>By allowing the developer to define their own HTML/CSS/JS components in a single place, Goose encourages
+      adherence to the Don't Repeat Yourself (DRY) principle without any JavaScript knowledge required.</p>
+
+    <h2>Setup</h2>
+    <p>The process of using Goose is simple:</p>
+    <ol>
+      <li>Add the Goose folder in the root of your website folder</li>
+      <li>Add the below code to your <span class="code">&lt;head></span> element.
+        <div class="code center-code">
+          &lt;script src="Goose/_private/load.js" type="module">&lt;/script>
+        </div>
+      </li>
+      <li>That's it!</li>
+    </ol>
+
+    <h2>Using Goose Components</h2>
+
+    <p>
+      To use a Goose component, all you have to do is write it into your HTML like any other element.
+      When the page loads, Goose will insert your component into that container, and voila, you have a component!
+    </p>
+
+    <p>
+      For example, the code used to generate one of the <span class="code">&lt;goose-red-button></span> elements seen as
+      seen below, is as simple as
+    </p>
+
+    <goose-red-button>I'm a button!</goose-red-button>
+
+    <div class="code center-code">
+      &lt;p>For example, the code used to generate one of the &lt;goose-red-button&gt; elements seen as seen
+      below, is as simple as&lt;/p> <br /><br />
+
+      &lt;goose-red-button>I'm a button!&lt;/goose-red-button>
+    </div>
+
+    <p>Components can be defined to replace any HTML. Some examples are below:</p>
+
+    <h4>Buttons:</h4>
+
+    <goose-button data-goose-bg-colour="red" data-goose-text-colour="white">Red button</goose-button>
+    <goose-red-button>A DRYer red button</goose-red-button>
+    <goose-blue-button>Another red button</goose-blue-button>
+
+    <h4>Cat images:</h4>
+
+    <p>Here's some kittens, provided by <goose-self-link data-goose-href="https://placekitten.com/"></goose-self-link>:
+    </p>
+
+    <div style="text-align: center;">
+      <goose-image-card data-goose-h="200" data-goose-w="250"></goose-image-card>
+      <goose-image-card data-goose-h="200" data-goose-w="290">This text gets deleted since goose-image-card has no
+        goose-body</goose-image-card>
+      <goose-image-card data-goose-h="200" data-goose-w="200"></goose-image-card>
+    </div>
+
+    <h2>How Components Work</h2>
+
+    <p>
+      The <span class="code">&lt;goose-button></span> is defined in the <span
+        class="code">Goose/components/goose-button</span> folder,
+      which contains files for its HTML, CSS, and JavaScript.
+    </p>
+    <p>
+      Upon encountering a <span class="code">&lt;goose-TAG-NAME-HERE></span> tag in the HTML, Goose automatically
+      searches the <span class="code">Goose/components</span> folder for a folder of files related to the component.
+    </p>
+    <p>
+      In the case of <span class="code">goose-button></span>, Goose finds the a <span
+        class="code">Goose/components/goose-button</span>
+      folder, then fills the <span class="code">goose-button></span> with the contents of <span
+        class="code">Goose/components/goose-button.html</span>.
+    </p>
+    <p>
+      If any <span class="code">goose-button.css</span> or <span class="code">goose-button.js</span> files are found in
+      that folder, Goose will also load them to the page.
+    </p>
+
+    <h3><span class="code">&lt;goose-body></span></h3>
+
+    <p>Sometimes you want your component to have content inside of it. We saw this earlier with the example of</p>
+    <div class="code center-code">
+      &lt;goose-red-button>I'm a button!&lt;/goose-red-button>
+    </div>
+
+    <p>
+      This is accomplished by the <span class="code">&lt;goose-body/></span> tag within the Goose component's HTML.
+    </p>
+    <p>
+      Here is the <span class="code">goose-red-button.html</span>. You can see where the <span
+        class="code">&lt;goose-body/></span> gets replaced with <span class="code">I'm a button!</span>
+    </p>
+    <div class="code center-code">
+      &lt;goose-button data-goose-bg-colour="red" data-goose-text-colour="white"><br />
+      &nbsp;&nbsp;&lt;goose-body>&lt;/goose-body><br />
+      &lt;/goose-button>
+    </div>
+
+    <h3><span class="code">data-goose-</span> and <span class="code">goose-insert-</span></h3>
+
+    <p> Sometimes we need to pass in information to a component. For example, the <span class="code">goose-button</span>
+      would benefit from having background colour and text colour parameters to allow customization. </p>
+
+    <p>Goose allows for this by having the parameters defined in the Goose element as <span
+        class="code">data-goose-</span> attributes,
+      and in the component's HTML file as <span class="code">goose-insert-</span>.</p>
+
+    <p>This is best demonstrated by example. Here is some code for a <span class="code">goose-button</span>:</p>
+    <div class="code center-code">
+      &lt;goose-button data-goose-bg-colour="red" data-goose-text-colour="white"><br />
+      &nbsp;&nbsp;I love buttons!<br />
+      &lt;/goose-button>
+    </div>
+
+    <p>Note the <span class="code">data-goose-</span> attributes, in particular, <span
+        class="code">data-goose-bg-colour</span> and <span class="code">data-goose-text-colour</span>. </p>
+
+    <p>Then, in the HTML
+      file for <span class="code">goose-button</span>, we use these values.</p>
+    <div class="code center-code">
+      &lt;button class="goose-button"
+      style="background-color: goose-insert-bg-colour; border-color: goose-insert-bg-colour; color:
+      goose-insert-text-colour"><br />
+      &nbsp;&nbsp;&lt;goose-body /><br />
+      &lt;/button>
+    </div>
+
+    <p>When creating a component of your own, you do not need to pre-define these values in any way. Goose automatically
+      fills in any <span class="code">goose-insert-</span>s with <span class="code">data-goose-</span> values, no setup
+      required.</p>
+
+    <h3>Nested components</h3>
+
+    <p>Goose allows you to nest your Goose components inside of other Goose components. For example, here is <span
+        class="code">goose-red-button.html</span>:</p>
+
+    <div class="code center-code">
+      &lt;goose-button data-goose-bg-colour="red" data-goose-text-colour="white"><br />
+      &nbsp;&nbsp;&lt;goose-body>&lt;/goose-body><br />
+      &lt;/goose-button>
+    </div>
+
+    <h2>Defining your own components</h2>
+
+    <p>Defining a new component is simple. Imagine that we want to create a new icon component
+      for a website. The steps would be</p>
+    <ol>
+      <li>
+        <p>Come up with a name for your component. All components must follow the pattern <span
+            class="code">goose-COMPONENT-NAME-HERE</span>.
+          This allows Goose to differentiate
+          between normal elements and Goose elements. </p>
+        <p>For example, we name this new component <span class="code">goose-icon</span></p>
+      </li>
+      <li>
+        <p>Create a new folder in the <span class="code">Goose/components</span> folder, and name
+          it your tag name.</p>
+        <p> For example, we create a <span class="code">Goose/components/goose-icon</span> folder.</p>
+      </li>
+      <li>
+        <p>Create an HTML file in the new component's folder, and name
+          it your tag name. Then, write the HTML for your component in this file.</p>
+        <p> For example, we create a <span class="code">Goose/components/goose-icon/goose-icon.html</span> file, and
+          fill it accordingly.</p>
+      </li>
+      <li>
+        <p>Create any CSS or JS files needed for this component; name them in the same pattern</p>
+        <p> For example, we create a <span class="code">Goose/components/goose-icon/goose-icon.css</span> file, and
+          fill with CSS code for the <span class="code">goose-icon</span> component.</p>
+      </li>
+      <li>
+        <p>Use the component! It can now be called any HTML file that has the necessary script imported in the <span
+            class="code">&lt;head></span> (see
+          Setup at the top of this page if you forget what this means).</p>
+      </li>
+    </ol>
+  </div>
+  <div class="goose-footer">
+    <span>Thank Mr. Goose</span>
+  </div>
+</body>
