@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es6",
+    "target": "esnext",
     "module": "ES6",
     "lib": ["es2020", "DOM"],
     "sourceMap": true,
