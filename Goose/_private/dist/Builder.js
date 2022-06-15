@@ -9,10 +9,34 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 import { GooseUtil } from "./Util.js";
 export class GooseBuilder {
+    static getConfig() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this._config)
+                return this._config;
+            const response = yield GooseUtil.sendRequest('Goose/goose-config.json');
+            this._config = JSON.parse(response);
+            return this._config;
+        });
+    }
+    static getPrefix() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this._prefix)
+                return this._prefix;
+            else {
+                const config = yield this.getConfig();
+                if (config.prefix)
+                    this._prefix = config.prefix;
+                else
+                    this._prefix = 'goose';
+            }
+            return this._prefix;
+        });
+    }
     static build(outerElement) {
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
-            const gooseTags = Array.from((_a = outerElement.innerHTML.match(/<goose-([^>]*)>/g)) !== null && _a !== void 0 ? _a : []);
+            const prefix = yield this.getPrefix();
+            const gooseTags = Array.from((_a = outerElement.innerHTML.match(new RegExp(`<${prefix}-([^>]*)>`, 'g'))) !== null && _a !== void 0 ? _a : []);
             yield Promise.all(gooseTags.map((tag) => __awaiter(this, void 0, void 0, function* () {
                 const tagName = tag.replace(/\%3E/g, '>') // remove html escape
                     .replace(/[<>]/g, '') // remove arrow braces
@@ -33,29 +57,25 @@ export class GooseBuilder {
             })));
         });
     }
-    static getPrefix() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const response = yield GooseUtil.sendRequest('Goose/goose-config.json');
-            console.log(response);
-        });
-    }
     static fillHTMLTemplate(template, originalElement) {
         return __awaiter(this, void 0, void 0, function* () {
+            const prefix = yield this.getPrefix();
+            const config = yield this.getConfig();
             // use a container to allow HTML tree parsing
             const container = document.createElement('div');
             container.innerHTML = template;
             // replace <goose-body/>
-            const body = container.querySelector('goose-body');
+            const body = container.querySelector(`${prefix}-body`);
             if (body)
                 body.replaceWith(originalElement.innerHTML);
             // handle goose-insert- and data-goose- attributes
             let replacedHTML = container.innerHTML;
             Array.from(originalElement.attributes).forEach((attribute) => {
-                if (!attribute.nodeName.includes('data-goose-'))
+                if (!attribute.nodeName.includes(`data-${prefix}-`))
                     return;
-                const name = attribute.nodeName.split('data-goose-')[1];
+                const name = attribute.nodeName.split(`data-${prefix}-`)[1];
                 const value = attribute.nodeValue;
-                replacedHTML = replacedHTML.replace(new RegExp(`goose-insert-${name}`, 'g'), value);
+                replacedHTML = replacedHTML.replace(new RegExp(`${prefix}-insert-${name}`, 'g'), value);
             });
             container.innerHTML = replacedHTML;
             // replace all goose-components within the container
@@ -69,23 +89,27 @@ export class GooseBuilder {
             GooseBuilder.loadResource(componentName, path, this.resourcesWithLoadedCSS, 'link', [
                 ['href', path],
                 ['rel', 'stylesheet']
-            ]);
+            ], 'css');
         });
     }
     static loadJS(componentName) {
         const path = GooseUtil.getRelativeUrlPath(`Goose/components/${componentName}/${componentName}.js`);
         GooseBuilder.loadResource(componentName, path, this.resourcesWithLoadedJS, 'script', [
             ['src', path]
-        ]);
+        ], 'js');
     }
-    static loadResource(componentName, path, loadedArray, elementTagName, elementAttributes) {
+    static loadResource(componentName, path, loadedArray, elementTagName, elementAttributes, type) {
         return __awaiter(this, void 0, void 0, function* () {
+            const config = yield this.getConfig();
             // don't do anything if this component's resources are already loaded
             if (loadedArray.includes(componentName))
                 return;
             else
                 loadedArray.push(componentName);
-            if (yield GooseUtil.doesFileExist(path)) {
+            // if file is explicitly stated to not exist, don't check
+            if ((config === null || config === void 0 ? void 0 : config.resources[componentName]) && (config === null || config === void 0 ? void 0 : config.resources[componentName][type]) === false)
+                return;
+            else if (yield GooseUtil.doesFileExist(path)) {
                 // create link/script element and put it at the end of the <head>
                 const link = document.createElement(elementTagName);
                 elementAttributes.forEach((attributePair) => {
@@ -98,5 +122,6 @@ export class GooseBuilder {
 }
 GooseBuilder.resourcesWithLoadedCSS = [];
 GooseBuilder.resourcesWithLoadedJS = [];
-GooseBuilder.prefix = GooseBuilder.getPrefix();
+GooseBuilder._config = null;
+GooseBuilder._prefix = null;
 //# sourceMappingURL=Builder.js.map

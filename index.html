@@ -186,6 +186,33 @@
           Setup at the top of this page if you forget what this means).</p>
       </li>
     </ol>
+
+    <h1>Troubleshooting</h1>
+
+    <h3>I don't want my components to be called <span class="code">goose-</span></h3>
+
+    <p>This is understandable. To change the prefix used by Goose, you can change the <span class="code">prefix</span>
+      set in <span class="code">Goose/goose-config.json</span>.</p>
+
+    <p>Note that this will also require any <span class="code">data-goose-</span> and <span
+        class="code">goose-insert-</span> to instead use your new prefix instead of <span class="code">goose-</span>.
+    </p>
+
+    <h3>File not found errors</h3>
+
+    <p>Are you getting errors similar to these?</p>
+
+    <img src="demo-resources/error-1.png"
+      alt="error messages including: HEAD localhost/Goose/components/goose-red-button/goose-red-button.js 404 (Not Found)">
+
+    <p>These errors occur when Goose looks for a component file but finds it missing. They can be silenced by adding an
+      entry to the <span class="code">resources</span> object in the <span class="code">Goose/goose-config.json</span>
+      file for your component.</p>
+    <p>Following the pattern there, you can set a component's <span class="code">"css":
+        false</span> to tell Goose not to check for that component's CSS file.
+    </p>
+    <p>Similarly, you can set <span class="code">"js": false</span>
+      to tell Goose not to check for that component's JS file.</p>
   </div>
   <div class="goose-footer">
     <span>Thank Mr. Goose</span>
