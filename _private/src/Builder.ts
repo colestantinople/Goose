@@ -1,15 +1,19 @@
 import { GooseUtil } from "./Util.js";
 
 export class GooseBuilder {
-  private static resourcesWithLoadedCSS = [];
-  private static resourcesWithLoadedJS = [];
+  private static resourcesWithLoadedCSS: string[] = [];
+  private static resourcesWithLoadedJS: string[] = [];
+
+  // Components for which errors have been emitted
+  private static errorComponents: string[] = [];
+  private static componentsWithErrorMessagesLogged: string[] = [];
 
   private static _config = null;
-  private static _prefix = null;
+  private static _prefix: string = null;
 
   static async getConfig() {
     if (this._config) return this._config;
-    const response = await GooseUtil.sendRequest('Goose/goose-config.json');
+    const response = await GooseUtil.sendRequest('/Goose/goose-config.json');
     this._config = JSON.parse(response);
     return this._config;
   }
@@ -24,7 +28,7 @@ export class GooseBuilder {
     return this._prefix;
   }
 
-  static async build(outerElement: HTMLElement) {
+  static async build(outerElement: HTMLElement, previousElements: string[]) {
     const prefix = await this.getPrefix();
 
     const gooseTags: string[] = Array.from(
@@ -37,15 +41,41 @@ export class GooseBuilder {
         .replace(/[<>]/g, '') // remove arrow braces
         .split(' ')[0]; // remove attributes
 
-      await this.loadCSS(tagName);
+      if (GooseBuilder.errorComponents.includes(tagName)) return;
 
+      // catch recursive component implementations
+      if (previousElements.includes(tagName)) {
+        // IMMEDIATELY push into errorComponents to prevent multithread re-runs
+        GooseBuilder.errorComponents.push(tagName);
+
+        // Build error message
+        let loopTree: string = '';
+        for (let i = previousElements.indexOf(tagName); i < previousElements.length; i++) {
+          loopTree += previousElements[i] + ' -> ';
+          GooseBuilder.errorComponents.push(previousElements[i]);
+        }
+        loopTree += tagName;
+
+        if (!GooseBuilder.componentsWithErrorMessagesLogged.includes(tagName)) {
+          GooseBuilder.componentsWithErrorMessagesLogged.push(tagName);
+          throw new Error(['Goose Error: Recursive component implementation.\n',
+            'It appears that you have included a component within itself, possibly in a roundabout way through',
+            'other components.  Such a loop would result in an infinite loading cycle; Goose has prevented this.\n',
+            'Thank Mr Goose.\n',
+            'The cycle is found in the components: '
+          ].join('\n') + loopTree);
+        } else return;
+      } 
+
+      // load CSS and get components
+      await this.loadCSS(tagName);
       const elements: HTMLElement[] = Array.from(outerElement.querySelectorAll(tagName)) as HTMLElement[];
 
       return new Promise<void>(async (resolve) => {
-        const html: string = await GooseUtil.sendRequest(`Goose/components/${tagName}/${tagName}.html`);
+        const html: string = await GooseUtil.sendRequest(`/Goose/components/${tagName}/${tagName}.html`);
         await Promise.all(elements.map(async (element) => {
           return new Promise<void>(async (subResolve) => {
-            element.innerHTML = await this.fillHTMLTemplate(html, element);
+            element.innerHTML = await this.fillHTMLTemplate(html, element, previousElements.concat(tagName));
             subResolve();
           });
         }));
@@ -56,7 +86,7 @@ export class GooseBuilder {
     }));
   }
 
-  static async fillHTMLTemplate(template: string, originalElement: HTMLElement): Promise<string> {
+  static async fillHTMLTemplate(template: string, originalElement: HTMLElement, previousElements: string[]): Promise<string> {
     const prefix = await this.getPrefix();
     const config = await this.getConfig();
 
@@ -81,13 +111,13 @@ export class GooseBuilder {
     container.innerHTML = replacedHTML;
 
     // replace all goose-components within the container
-    await GooseBuilder.build(container);
+    await GooseBuilder.build(container, previousElements);
 
     return container.innerHTML;
   }
 
   static async loadCSS(componentName: string) {
-    const path: string = GooseUtil.getRelativeUrlPath(`Goose/components/${componentName}/${componentName}.css`);
+    const path: string = GooseUtil.getRelativeUrlPath(`/Goose/components/${componentName}/${componentName}.css`);
     GooseBuilder.loadResource(componentName, path, this.resourcesWithLoadedCSS, 'link', [
       ['href', path],
       ['rel', 'stylesheet']
@@ -95,7 +125,7 @@ export class GooseBuilder {
   }
 
   static loadJS(componentName: string) {
-    const path: string = GooseUtil.getRelativeUrlPath(`Goose/components/${componentName}/${componentName}.js`);
+    const path: string = GooseUtil.getRelativeUrlPath(`/Goose/components/${componentName}/${componentName}.js`);
     GooseBuilder.loadResource(componentName, path, this.resourcesWithLoadedJS, 'script', [
       ['src', path]
     ], 'js');
