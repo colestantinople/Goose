@@ -1,6 +1,12 @@
 import { GooseUtil } from "./Util.js";
 
 export class GooseBuilder {
+  private static readonly RESERVED_NAMES = [
+    'goose-body',
+    'goose-insert',
+    'goose-slot',
+  ];
+
   private static resourcesWithLoadedCSS: string[] = [];
   private static resourcesWithLoadedJS: string[] = [];
 
@@ -41,36 +47,17 @@ export class GooseBuilder {
         .replace(/[<>]/g, '') // remove arrow braces
         .split(' ')[0]; // remove attributes
 
+      if (GooseBuilder.RESERVED_NAMES.includes(tagName.toLowerCase())) return;
+
+      // check for invalid structure
       if (GooseBuilder.errorComponents.includes(tagName)) return;
-
-      // catch recursive component implementations
-      if (previousElements.includes(tagName)) {
-        // IMMEDIATELY push into errorComponents to prevent multithread re-runs
-        GooseBuilder.errorComponents.push(tagName);
-
-        // Build error message
-        let loopTree: string = '';
-        for (let i = previousElements.indexOf(tagName); i < previousElements.length; i++) {
-          loopTree += previousElements[i] + ' -> ';
-          GooseBuilder.errorComponents.push(previousElements[i]);
-        }
-        loopTree += tagName;
-
-        if (!GooseBuilder.componentsWithErrorMessagesLogged.includes(tagName)) {
-          GooseBuilder.componentsWithErrorMessagesLogged.push(tagName);
-          throw new Error(['Goose Error: Recursive component implementation.\n',
-            'It appears that you have included a component within itself, possibly in a roundabout way through',
-            'other components.  Such a loop would result in an infinite loading cycle; Goose has prevented this.\n',
-            'Thank Mr Goose.\n',
-            'The cycle is found in the components: '
-          ].join('\n') + loopTree);
-        } else return;
-      } 
+      GooseBuilder.checkForRecursiveBuild(tagName, previousElements);
 
       // load CSS and get components
       await this.loadCSS(tagName);
       const elements: HTMLElement[] = Array.from(outerElement.querySelectorAll(tagName)) as HTMLElement[];
 
+      // fill HTML
       return new Promise<void>(async (resolve) => {
         const html: string = await GooseUtil.sendRequest(`/Goose/components/${tagName}/${tagName}.html`);
         await Promise.all(elements.map(async (element) => {
@@ -82,13 +69,38 @@ export class GooseBuilder {
 
         this.loadJS(tagName);
         resolve();
-      })
+      });
     }));
+  }
+
+  // catch recursive component implementations
+  static async checkForRecursiveBuild(tagName: string, previousElements: string[]) {
+    if (previousElements.includes(tagName)) {
+      // IMMEDIATELY push into errorComponents to prevent multithread re-runs
+      GooseBuilder.errorComponents.push(tagName);
+
+      // Build error message
+      let loopTree: string = '';
+      for (let i = previousElements.indexOf(tagName); i < previousElements.length; i++) {
+        loopTree += previousElements[i] + ' -> ';
+        GooseBuilder.errorComponents.push(previousElements[i]);
+      }
+      loopTree += tagName;
+
+      if (!GooseBuilder.componentsWithErrorMessagesLogged.includes(tagName)) {
+        GooseBuilder.componentsWithErrorMessagesLogged.push(tagName);
+        throw new Error(['Goose Error: Recursive component implementation.\n',
+          'It appears that you have included a component within itself, possibly in a roundabout way through',
+          'other components.  Such a loop would result in an infinite loading cycle; Goose has prevented this.\n',
+          'Thank Mr Goose.\n',
+          'The cycle is found in the components: '
+        ].join('\n') + loopTree);
+      } else return;
+    }
   }
 
   static async fillHTMLTemplate(template: string, originalElement: HTMLElement, previousElements: string[]): Promise<string> {
     const prefix = await this.getPrefix();
-    const config = await this.getConfig();
 
     // use a container to allow HTML tree parsing
     const container = document.createElement('div');
@@ -97,6 +109,30 @@ export class GooseBuilder {
     // replace <goose-body/>
     const body = container.querySelector(`${prefix}-body`);
     if (body) body.replaceWith(originalElement.innerHTML);
+
+    // replace <goose-slot-i/>
+    const slots: HTMLElement[] = Array.from(container.querySelectorAll('goose-slot'));
+    const slotIDs: number[] = slots.map((slot) => {
+      return parseInt(slot.getAttribute('data-slot-id'));
+    });
+
+    const slotInserts: HTMLElement[] = Array.from(originalElement.children).filter((child: HTMLElement) => {
+      return child.tagName.toLowerCase() === 'goose-insert';
+    }) as HTMLElement[];
+
+    slots.forEach((slot: HTMLElement, i: number) => {
+      const id = slotIDs[i];
+      const inserts: HTMLElement[] = slotInserts.filter((insert) => {
+        return parseInt(insert.getAttribute('data-insert-id')) === id;
+      });
+
+      console.log(id, inserts);
+
+      if (inserts.length === 0) return; // no insert given
+      if (inserts.length > 1) throw new Error(`Too many inserts for slot ${i} of ${originalElement.tagName.toLowerCase()}`);
+
+      slot.appendChild(inserts[0]);
+    });
 
     // handle goose-insert- and data-goose- attributes
     let replacedHTML = container.innerHTML;

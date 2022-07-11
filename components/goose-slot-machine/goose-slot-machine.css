@@ -1,0 +1,6 @@
+.slot-machine {
+  display: flex;
+  flex-flow: row;
+  padding: 1em;
+  background-color: #ddd;
+}
