@@ -9,13 +9,22 @@
       "css": false,
       "js": false
     },
+    "goose-image-card": {
+      "css": true,
+      "js": false
+    },
+    "goose-nav": {
+      "css": true,
+      "js": false
+    },
     "goose-self-link": {
       "css": true,
       "js": false
     },
-    "goose-image-card": {
+    "goose-slot-demo": {
       "css": true,
       "js": false
     }
-  }
+  },
+  "show_structure": false
 }

@@ -1,0 +1,20 @@
+.slot-machine {
+  padding: 1em;
+  background-color: #888;
+  border: 2px solid #222;
+
+  margin: auto;
+  max-width: 300px;
+  min-height: 300px;
+
+  box-shadow: 0 0 4px 4px #fce40b88;
+}
+
+.slot-machine p {
+  display: block;
+  text-align: center;
+  background-color: #fdd700;
+  color: black;
+  border-radius: 20px;
+  padding: 3px 0;
+}
