@@ -1,0 +1,38 @@
+body {
+  padding-top: 60px;
+}
+
+nav {
+  position: fixed;
+
+  top: 0;
+
+  background-color: white;
+  box-shadow: 0 1px 3px 2px #bbb8;
+  width: calc(100% - 60px);
+  padding: 10px 30px;
+}
+
+nav a {
+  text-decoration: none;
+  color: black;
+}
+
+nav div {
+  display: inline-block;
+  height: 40px;
+  line-height: 40px;
+}
+
+nav #nav-links {
+  float: right;
+}
+
+nav #nav-links a {
+  transition: 0.25s;
+  margin: 0 1em;
+}
+
+nav #nav-links a:hover {
+  color: blue;
+}

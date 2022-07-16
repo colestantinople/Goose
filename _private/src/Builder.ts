@@ -1,10 +1,19 @@
 import { GooseUtil } from "./Util.js";
 
+interface GooseConfig {
+  prefix: string,
+  show_structure: boolean,
+  resources: Record<string, {
+    css: boolean,
+    js: boolean
+  }>
+};
+
 export class GooseBuilder {
-  private static readonly RESERVED_NAMES = [
-    'goose-body',
-    'goose-insert',
-    'goose-slot',
+  private static readonly _RESERVED_NAMES = [
+    '-body',
+    '-insert',
+    '-slot',
   ];
 
   private static resourcesWithLoadedCSS: string[] = [];
@@ -17,10 +26,10 @@ export class GooseBuilder {
   private static _config = null;
   private static _prefix: string = null;
 
-  static async getConfig() {
+  static async getConfig(): Promise<GooseConfig> {
     if (this._config) return this._config;
     const response = await GooseUtil.sendRequest('/Goose/goose-config.json');
-    this._config = JSON.parse(response);
+    this._config = JSON.parse(response) as GooseConfig;
     return this._config;
   }
 
@@ -34,20 +43,28 @@ export class GooseBuilder {
     return this._prefix;
   }
 
+  static async getReservedNames(): Promise<string[]> {
+    const prefix: string = await this.getPrefix();
+    return this._RESERVED_NAMES.map((suffix) => prefix + suffix);
+  }
+
   static async build(outerElement: HTMLElement, previousElements: string[]) {
     const prefix = await this.getPrefix();
+    const config = await this.getConfig();
 
-    const gooseTags: string[] = Array.from(
+    const gooseTags: string[] = GooseUtil.uniqueFilter(Array.from(
       outerElement.innerHTML.match(
         new RegExp(`<${prefix}-([^>]*)>`, 'g')
-      ) ?? []);
+      ) ?? []).map((fullOpenTag) => {
+        return fullOpenTag.replace(/\%3E/g, '>') // remove html escape
+          .replace(/[<>]/g, '') // remove arrow braces
+          .split(' ')[0]; // remove attributes
+      }));
 
-    await Promise.all(gooseTags.map(async (tag) => {
-      const tagName = tag.replace(/\%3E/g, '>') // remove html escape
-        .replace(/[<>]/g, '') // remove arrow braces
-        .split(' ')[0]; // remove attributes
-
-      if (GooseBuilder.RESERVED_NAMES.includes(tagName.toLowerCase())) return;
+    await Promise.all(gooseTags.map(async (tagName) => {
+      // don't try to build goose-body, goose-slot, goose-insert, etc.
+      const reservedNames = await GooseBuilder.getReservedNames();
+      if (reservedNames.includes(tagName.toLowerCase())) return;
 
       // check for invalid structure
       if (GooseBuilder.errorComponents.includes(tagName)) return;
@@ -58,18 +75,24 @@ export class GooseBuilder {
       const elements: HTMLElement[] = Array.from(outerElement.querySelectorAll(tagName)) as HTMLElement[];
 
       // fill HTML
-      return new Promise<void>(async (resolve) => {
-        const html: string = await GooseUtil.sendRequest(`/Goose/components/${tagName}/${tagName}.html`);
-        await Promise.all(elements.map(async (element) => {
-          return new Promise<void>(async (subResolve) => {
-            element.innerHTML = await this.fillHTMLTemplate(html, element, previousElements.concat(tagName));
-            subResolve();
-          });
-        }));
+      const html: string = await GooseUtil.sendRequest(`/Goose/components/${tagName}/${tagName}.html`);
+      await Promise.all(elements.map(async (element) => {
+        return new Promise<void>(async (subResolve) => {
+          const contents: string = await this.fillHTMLTemplate(html, element, previousElements.concat(tagName));
 
-        this.loadJS(tagName);
-        resolve();
-      });
+          if (config.show_structure) {
+            element.innerHTML = contents;
+          } else {
+            element.insertAdjacentHTML('afterend', contents);
+            element.remove();
+          }
+
+          subResolve();
+        });
+      }));
+
+      // load JS
+      this.loadJS(tagName);
     }));
   }
 
@@ -101,6 +124,7 @@ export class GooseBuilder {
 
   static async fillHTMLTemplate(template: string, originalElement: HTMLElement, previousElements: string[]): Promise<string> {
     const prefix = await this.getPrefix();
+    const config = await GooseBuilder.getConfig();
 
     // use a container to allow HTML tree parsing
     const container = document.createElement('div');
@@ -111,28 +135,31 @@ export class GooseBuilder {
     if (body) body.replaceWith(originalElement.innerHTML);
 
     // replace <goose-slot-i/>
-    const slots: HTMLElement[] = Array.from(container.querySelectorAll('goose-slot'));
-    const slotIDs: number[] = slots.map((slot) => {
-      return parseInt(slot.getAttribute('data-slot-id'));
+    const slots: HTMLElement[] = Array.from(container.querySelectorAll(`${prefix}-slot`));
+    const slotIDs: string[] = slots.map((slot) => {
+      return slot.getAttribute('data-slot-id');
     });
 
     const slotInserts: HTMLElement[] = Array.from(originalElement.children).filter((child: HTMLElement) => {
-      return child.tagName.toLowerCase() === 'goose-insert';
+      return child.tagName.toLowerCase() === `${prefix}-insert`;
     }) as HTMLElement[];
 
-    slots.forEach((slot: HTMLElement, i: number) => {
+    await Promise.all(slots.map((slot: HTMLElement, i: number) => {
       const id = slotIDs[i];
       const inserts: HTMLElement[] = slotInserts.filter((insert) => {
-        return parseInt(insert.getAttribute('data-insert-id')) === id;
+        return insert.getAttribute('data-slot-id') === id;
       });
-
-      console.log(id, inserts);
 
       if (inserts.length === 0) return; // no insert given
       if (inserts.length > 1) throw new Error(`Too many inserts for slot ${i} of ${originalElement.tagName.toLowerCase()}`);
 
-      slot.appendChild(inserts[0]);
-    });
+      return new Promise<void>(async (resolve, reject) => {
+        const appendedNode = config.show_structure ? inserts[0] : inserts[0].childNodes[0];
+
+        await GooseBuilder.replaceTemplateWith(slot, appendedNode);
+        resolve();
+      });
+    }));
 
     // handle goose-insert- and data-goose- attributes
     let replacedHTML = container.innerHTML;
@@ -190,5 +217,15 @@ export class GooseBuilder {
       });
       document.head.appendChild(link);
     }
+  }
+
+  /**
+   * Replaces replacedTemplateNode with replacerNode if and only if config.show_structure is false, otherwise appends replacerNode to replacedTemplateNode 
+   */
+  private static async replaceTemplateWith(templateNode: HTMLElement, replacerNode: Node): Promise<void> {
+    const config = await GooseBuilder.getConfig();
+
+    if (config.show_structure) templateNode.appendChild(replacerNode);
+    else templateNode.replaceWith(replacerNode);
   }
 }

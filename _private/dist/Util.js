@@ -63,5 +63,14 @@ export class GooseUtil {
             windowRelativePath = '../' + windowRelativePath;
         return windowRelativePath;
     }
+    static uniqueFilter(a) {
+        return a.filter((element, index) => {
+            for (let i = index + 1; i < a.length; i++) {
+                if (element === a[i])
+                    return false;
+            }
+            return true;
+        });
+    }
 }
 //# sourceMappingURL=Util.js.map

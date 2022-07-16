@@ -71,4 +71,13 @@ export class GooseUtil {
 
     return windowRelativePath;
   }
+
+  static uniqueFilter<T>(a: T[]): T[] {
+    return a.filter((element: T, index: number) => {
+      for (let i = index + 1; i < a.length; i++) {
+        if (element === a[i]) return false;
+      }
+      return true;
+    });
+  }
 }
